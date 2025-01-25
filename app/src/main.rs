@@ -21,8 +21,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(service.clone()))
-            .route("/create_container", web::post().to(create_container))
-            .route("/remove_container", web::post().to(remove_container))
+            .route("/create-container", web::post().to(create_container))
+            .route("/remove-container", web::post().to(remove_container))
             .route("/containers", web::get().to(get_container_list))
         // 更多路由配置...
     })

@@ -1548,6 +1548,7 @@ dependencies = [
  "containerd-client",
  "env_logger",
  "log",
+ "prost-types",
  "serde",
  "serde_json",
  "tokio",

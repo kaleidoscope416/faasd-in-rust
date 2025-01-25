@@ -1,13 +1,15 @@
 use containerd_client::{
     services::v1::{
         container::Runtime, Container, CreateContainerRequest, CreateTaskRequest,
-        DeleteContainerRequest, DeleteTaskRequest, KillRequest, ListContainersRequest,
-        ListTasksRequest, StartRequest, WaitRequest,
+        DeleteContainerRequest, DeleteTaskRequest, GetImageRequest, KillRequest,
+        ListContainersRequest, ListTasksRequest, StartRequest, WaitRequest,
     },
     tonic::Request,
     with_namespace, Client,
 };
+use prost_types::Any;
 use std::{
+    collections::HashMap,
     fs::{self, File},
     sync::{Arc, Mutex},
     time::Duration,
@@ -34,6 +36,11 @@ impl Service {
     }
 
     pub async fn create_container(&self, image: String, cid: String) {
+        // let spec = include_str!("../../container_spec.json").to_string();
+        // let spec = Any {
+        //     type_url: "types.containerd.io/opencontainers/runtime-spec/1/Spec".to_string(),
+        //     value: spec.into_bytes(),
+        // };
         let mut containers_client = self.client.lock().unwrap().containers();
         let container = Container {
             id: cid.to_string(),
@@ -42,7 +49,7 @@ impl Service {
                 name: "io.containerd.runc.v2".to_string(),
                 options: None,
             }),
-            spec: None,
+            // spec: Some(spec),
             ..Default::default()
         };
 
@@ -58,8 +65,6 @@ impl Service {
             .expect("Failed to create container");
 
         println!("Container: {:?} created", cid);
-
-        self.create_and_start_task(cid).await;
     }
 
     pub async fn remove_container(&self, container_id: String) {
@@ -158,6 +163,25 @@ impl Service {
         println!("Task: {:?} started", container_id);
     }
 
+    pub async fn kill_task(&self, container_id: String) {
+        let mut tasks_client = self.client.lock().unwrap().tasks();
+        let kill_request = Request::new(KillRequest {
+            container_id: container_id.to_string(),
+            signal: 15,
+            all: true,
+            ..Default::default()
+        });
+        tasks_client
+            .kill(kill_request)
+            .await
+            .expect("Failed to kill task");
+    }
+    pub async fn pause_task() {
+        todo!()
+    }
+    pub async fn resume_task() {
+        todo!()
+    }
     pub async fn delete_task(&self, container_id: &str) {
         let time_out = Duration::from_secs(30);
         let mut tc = self.client.lock().unwrap().tasks();
@@ -223,6 +247,8 @@ impl Service {
             .collect())
     }
 
+    pub async fn get_task_list() {}
+
     pub fn prepare_image(&self) {
         todo!()
     }
@@ -233,4 +259,7 @@ impl Service {
     pub fn get_resolver(&self) {
         todo!()
     }
+    
 }
+//容器是容器，要先启动，然后才能运行任务
+//要想删除一个正在运行的Task，必须先kill掉这个task，然后才能删除。
