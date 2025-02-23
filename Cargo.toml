@@ -1,6 +1,6 @@
 [workspace]
-members = [ "app","service"]
-
+members = ["app", "service"]
+resolver = "3"
 
 # API 模块：基于 Actix Web 提供 RESTful 接口，调用 service 模块的功能。
 # 测试：编写单元测试和集成测试，确保服务的可靠性。
