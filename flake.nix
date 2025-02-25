@@ -53,23 +53,81 @@
           fileset = lib.fileset.unions [
             ./Cargo.toml
             ./Cargo.lock
-            (craneLib.fileset.commonCargoSources ./app)
-            (craneLib.fileset.commonCargoSources ./service)
+            (craneLib.fileset.commonCargoSources ./crates/app)
+            (craneLib.fileset.commonCargoSources ./crates/service)
+            (craneLib.fileset.commonCargoSources ./crates/my-workspace-hack)
             (craneLib.fileset.commonCargoSources crate)
           ];
         };
 
         faas-rs-crate = craneLib.buildPackage ( individualCrateArgs // {
           pname = "faas-rs";
-          cargoExtraArgs = "--bin faas-rs";
-          src = fileSetForCrate ./app;
+          cargoExtraArgs = "-p faas-rs";
+          src = fileSetForCrate ./crates/app;
         });
       in
       with pkgs;
       {
-        checks = { inherit faas-rs-crate; };
+        checks = { 
+          inherit faas-rs-crate;
+
+          # Run clippy (and deny all warnings) on the workspace source,
+          # again, reusing the dependency artifacts from above.
+          #
+          # Note that this is done as a separate derivation so that
+          # we can block the CI if there are issues here, but not
+          # prevent downstream consumers from building our crate by itself.
+          clippy = craneLib.cargoClippy (commonArgs // {
+            inherit cargoArtifacts;
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings -Z unstable-options";
+          });
+
+          doc = craneLib.cargoDoc (commonArgs // {
+            inherit cargoArtifacts;
+          });
+
+          # Check formatting
+          fmt = craneLib.cargoFmt {
+            inherit src;
+          };
+
+          # Run tests with cargo-nextest
+          # Consider setting `doCheck = false` on other crate derivations
+          # if you do not want the tests to run twice
+          nextest = craneLib.cargoNextest (commonArgs // {
+            inherit cargoArtifacts;
+            partitions = 1;
+            partitionType = "count";
+            cargoNextestPartitionsExtraArgs = "--no-tests=pass";
+          });
+
+          # Ensure that cargo-hakari is up to date
+          hakari = craneLib.mkCargoDerivation {
+            inherit src;
+            pname = "my-workspace-hack";
+            cargoArtifacts = null;
+            doInstallCargoArtifacts = false;
+
+            buildPhaseCargoCommand = ''
+              cargo hakari generate --diff  # workspace-hack Cargo.toml is up-to-date
+              cargo hakari manage-deps --dry-run  # all workspace crates depend on workspace-hack
+              cargo hakari verify
+            '';
+
+            nativeBuildInputs = [
+              pkgs.cargo-hakari
+            ];
+          };
+        };
 
         packages.default = faas-rs-crate;
+
+        apps = {
+          faas-rs = flake-utils.lib.mkApp {
+            drv = faas-rs-crate;
+            desc = "FaaS Rust Project";
+          };
+        };
 
         devShells.default = craneLib.devShell {
           checks = self.checks.${system};

@@ -1,15 +1,14 @@
 use containerd_client::{
     services::v1::{
         container::Runtime, Container, CreateContainerRequest, CreateTaskRequest,
-        DeleteContainerRequest, DeleteTaskRequest, GetImageRequest, KillRequest,
+        DeleteContainerRequest, DeleteTaskRequest, KillRequest,
         ListContainersRequest, ListTasksRequest, StartRequest, WaitRequest,
     },
     tonic::Request,
     with_namespace, Client,
 };
-use prost_types::Any;
+
 use std::{
-    collections::HashMap,
     fs::{self, File},
     sync::{Arc, Mutex},
     time::Duration,
@@ -17,7 +16,8 @@ use std::{
 use tokio::time::timeout;
 
 // config.json,dockerhub密钥
-const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
+// const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
+
 // 命名空间（容器的）
 const NAMESPACE: &str = "default";
 
@@ -36,7 +36,7 @@ impl Service {
     }
 
     pub async fn create_container(&self, image: String, cid: String) {
-        // let spec = include_str!("../../container_spec.json").to_string();
+        // let spec = include_str!("../container_spec.json").to_string();
         // let spec = Any {
         //     type_url: "types.containerd.io/opencontainers/runtime-spec/1/Spec".to_string(),
         //     value: spec.into_bytes(),
