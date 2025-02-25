@@ -1,11 +1,12 @@
 use containerd_client::{
+    Client,
     services::v1::{
-        container::Runtime, Container, CreateContainerRequest, CreateTaskRequest,
-        DeleteContainerRequest, DeleteTaskRequest, KillRequest,
-        ListContainersRequest, ListTasksRequest, StartRequest, WaitRequest,
+        Container, CreateContainerRequest, CreateTaskRequest, DeleteContainerRequest,
+        DeleteTaskRequest, KillRequest, ListContainersRequest, ListTasksRequest, StartRequest,
+        WaitRequest, container::Runtime,
     },
     tonic::Request,
-    with_namespace, Client,
+    with_namespace,
 };
 
 use std::{
@@ -85,7 +86,7 @@ impl Service {
 
             let request = Request::new(ListTasksRequest {
                 filter: format!("container=={}", container_id),
-                ..Default::default()
+                // ..Default::default()
             });
             let responce = tasks_client.list(request).await.unwrap().into_inner();
             drop(tasks_client);
@@ -107,7 +108,7 @@ impl Service {
 
             let delete_request = DeleteContainerRequest {
                 id: container.id.clone(),
-                ..Default::default()
+                // ..Default::default()
             };
             let delete_request = with_namespace!(delete_request, NAMESPACE);
 
@@ -259,7 +260,6 @@ impl Service {
     pub fn get_resolver(&self) {
         todo!()
     }
-    
 }
 //容器是容器，要先启动，然后才能运行任务
 //要想删除一个正在运行的Task，必须先kill掉这个task，然后才能删除。

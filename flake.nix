@@ -68,7 +68,7 @@
       in
       with pkgs;
       {
-        checks = { 
+        checks = {
           inherit faas-rs-crate;
 
           # Run clippy (and deny all warnings) on the workspace source,
@@ -125,7 +125,6 @@
         apps = {
           faas-rs = flake-utils.lib.mkApp {
             drv = faas-rs-crate;
-            desc = "FaaS Rust Project";
           };
         };
 

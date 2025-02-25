@@ -1178,7 +1178,10 @@ name = "my-workspace-hack"
 version = "0.1.0"
 dependencies = [
  "actix-router",
+ "bitflags",
  "bytes",
+ "getrandom",
+ "libc",
  "log",
  "memchr",
  "mio",
