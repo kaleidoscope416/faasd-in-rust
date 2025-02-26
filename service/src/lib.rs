@@ -1,3 +1,5 @@
+pub mod spec; 
+
 use containerd_client::{
     services::v1::{
         container::Runtime, Container, CreateContainerRequest, CreateTaskRequest,
@@ -36,11 +38,11 @@ impl Service {
     }
 
     pub async fn create_container(&self, image: String, cid: String) {
-        // let spec = include_str!("../../container_spec.json").to_string();
-        // let spec = Any {
-        //     type_url: "types.containerd.io/opencontainers/runtime-spec/1/Spec".to_string(),
-        //     value: spec.into_bytes(),
-        // };
+        let spec = include_str!("../../container_spec.json").to_string();
+        let spec = Any {
+            type_url: "types.containerd.io/opencontainers/runtime-spec/1/Spec".to_string(),
+            value: spec.into_bytes(),
+        };
         let mut containers_client = self.client.lock().unwrap().containers();
         let container = Container {
             id: cid.to_string(),
@@ -49,7 +51,7 @@ impl Service {
                 name: "io.containerd.runc.v2".to_string(),
                 options: None,
             }),
-            // spec: Some(spec),
+            spec: Some(spec),
             ..Default::default()
         };
 
@@ -259,7 +261,6 @@ impl Service {
     pub fn get_resolver(&self) {
         todo!()
     }
-    
 }
 //容器是容器，要先启动，然后才能运行任务
 //要想删除一个正在运行的Task，必须先kill掉这个task，然后才能删除。
