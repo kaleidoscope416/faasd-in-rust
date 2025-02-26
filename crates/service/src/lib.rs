@@ -1,15 +1,15 @@
 use containerd_client::{
+    Client,
     services::v1::{
-        container::Runtime, Container, CreateContainerRequest, CreateTaskRequest,
-        DeleteContainerRequest, DeleteTaskRequest, GetImageRequest, KillRequest,
-        ListContainersRequest, ListTasksRequest, StartRequest, WaitRequest,
+        Container, CreateContainerRequest, CreateTaskRequest, DeleteContainerRequest,
+        DeleteTaskRequest, KillRequest, ListContainersRequest, ListTasksRequest, StartRequest,
+        WaitRequest, container::Runtime,
     },
     tonic::Request,
-    with_namespace, Client,
+    with_namespace,
 };
-use prost_types::Any;
+
 use std::{
-    collections::HashMap,
     fs::{self, File},
     sync::{Arc, Mutex},
     time::Duration,
@@ -17,7 +17,8 @@ use std::{
 use tokio::time::timeout;
 
 // config.json,dockerhub密钥
-const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
+// const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
+
 // 命名空间（容器的）
 const NAMESPACE: &str = "default";
 
@@ -36,7 +37,7 @@ impl Service {
     }
 
     pub async fn create_container(&self, image: String, cid: String) {
-        // let spec = include_str!("../../container_spec.json").to_string();
+        // let spec = include_str!("../container_spec.json").to_string();
         // let spec = Any {
         //     type_url: "types.containerd.io/opencontainers/runtime-spec/1/Spec".to_string(),
         //     value: spec.into_bytes(),
@@ -85,7 +86,7 @@ impl Service {
 
             let request = Request::new(ListTasksRequest {
                 filter: format!("container=={}", container_id),
-                ..Default::default()
+                // ..Default::default()
             });
             let responce = tasks_client.list(request).await.unwrap().into_inner();
             drop(tasks_client);
@@ -107,7 +108,7 @@ impl Service {
 
             let delete_request = DeleteContainerRequest {
                 id: container.id.clone(),
-                ..Default::default()
+                // ..Default::default()
             };
             let delete_request = with_namespace!(delete_request, NAMESPACE);
 
@@ -259,7 +260,6 @@ impl Service {
     pub fn get_resolver(&self) {
         todo!()
     }
-    
 }
 //容器是容器，要先启动，然后才能运行任务
 //要想删除一个正在运行的Task，必须先kill掉这个task，然后才能删除。
