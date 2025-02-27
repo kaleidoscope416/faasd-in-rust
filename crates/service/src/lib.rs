@@ -1,7 +1,6 @@
 pub mod spec;
 
 use containerd_client::{
-    Client,
     services::v1::{
         container::Runtime,
         snapshots::{MountsRequest, PrepareSnapshotRequest},
@@ -19,16 +18,6 @@ use sha2::{Digest, Sha256};
 use spec::generate_spec;
 use std::{
     fs,
-        Container, CreateContainerRequest, CreateTaskRequest, DeleteContainerRequest,
-        DeleteTaskRequest, KillRequest, ListContainersRequest, ListTasksRequest, StartRequest,
-        WaitRequest, container::Runtime,
-    },
-    tonic::Request,
-    with_namespace,
-};
-
-use std::{
-    fs::{self, File},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -36,7 +25,6 @@ use tokio::time::timeout;
 
 // config.json,dockerhub密钥
 // const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
-
 // 命名空间（容器的）
 const NAMESPACE: &str = "default";
 

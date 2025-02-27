@@ -1,5 +1,5 @@
 use crate::types::*;
-use actix_web::{HttpResponse, Responder, web};
+use actix_web::{web, HttpResponse, Responder};
 use service::Service;
 use std::sync::Arc;
 
