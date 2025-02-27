@@ -1,16 +1,17 @@
 pub mod spec;
 
 use containerd_client::{
+    Client,
     services::v1::{
-        container::Runtime,
-        snapshots::{MountsRequest, PrepareSnapshotRequest},
         Container, CreateContainerRequest, CreateTaskRequest, DeleteContainerRequest,
         DeleteTaskRequest, GetImageRequest, KillRequest, ListContainersRequest, ListTasksRequest,
         ReadContentRequest, StartRequest, WaitRequest,
+        container::Runtime,
+        snapshots::{MountsRequest, PrepareSnapshotRequest},
     },
     tonic::Request,
     types::Mount,
-    with_namespace, Client,
+    with_namespace,
 };
 use oci_spec::image::{Arch, ImageConfiguration, ImageIndex, ImageManifest, MediaType, Os};
 use prost_types::Any;
@@ -63,12 +64,7 @@ impl Service {
         Ok(resp)
     }
 
-    pub async fn create_container(
-        &self,
-        image_name: &str,
-        cid: &str,
-        ns: &str,
-    ) -> Result<(), Err> {
+    pub async fn create_container(&self, image_name: &str, cid: &str, ns: &str) -> Result<(), Err> {
         let namespace = match ns {
             "" => spec::DEFAULT_NAMESPACE,
             _ => ns,
