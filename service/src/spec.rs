@@ -9,95 +9,100 @@ const VERSION_DEV: &str = ""; // 对应开发分支
 
 const RWM: &str = "rwm";
 const DEFAULT_ROOTFS_PATH: &str = "rootfs";
+pub const DEFAULT_NAMESPACE: &str = "default";
+const PATH_TO_SPEC_PREFIX: &str = "/tmp/containerd-spec";
 
-const DEFAULT_UNIX_ENV:&str="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+// const DEFAULT_UNIX_ENV: &str = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 
 const PID_NAMESPACE: &str = "pid";
 const NETWORK_NAMESPACE: &str = "network";
 const MOUNT_NAMESPACE: &str = "mount";
 const IPC_NAMESPACE: &str = "ipc";
 const UTS_NAMESPACE: &str = "uts";
-const USER_NAMESPACE: &str = "user";
-const CGROUP_NAMESPACE: &str = "cgroup";
-const TIME_NAMESPACE: &str = "time";
-
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Spec {
-    ociVersion: String,
-    root: Root,
-    process: Process,
-    linux: Linux,
-    mounts: Vec<Mount>,
+pub struct Spec {
+    #[serde(rename = "ociVersion")]
+    pub oci_version: String,
+    pub root: Root,
+    pub process: Process,
+    pub linux: Linux,
+    pub mounts: Vec<Mount>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Root {
-    path: String,
+pub struct Root {
+    pub path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Process {
-    cwd: String,
-    noNewPrivileges: bool,
-    user: User,
-    capabilities: LinuxCapabilities,
-    rlimits: Vec<POSIXRlimit>,
+pub struct Process {
+    pub cwd: String,
+    #[serde(rename = "noNewPrivileges")]
+    pub no_new_privileges: bool,
+    pub user: User,
+    pub capabilities: LinuxCapabilities,
+    pub rlimits: Vec<POSIXRlimit>,
+    pub args: Vec<String>,
+    pub env: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct User {
-    uid: u32,
-    gid: u32,
+pub struct User {
+    pub uid: u32,
+    pub gid: u32,
+    #[serde(rename = "additionalGids")]
+    pub additional_gids: Vec<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Mount {
-    destination: String,
-    type_: String,
-    source: String,
-    options: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct LinuxCapabilities {
-    bounding: Vec<String>,
-    permitted: Vec<String>,
-    effective: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct POSIXRlimit {
+pub struct Mount {
+    pub destination: String,
     #[serde(rename = "type")]
-    type_: String,
-    hard: u64,
-    soft: u64,
+    pub type_: String,
+    pub source: String,
+    pub options: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Linux {
-    masked_paths: Vec<String>,
-    readonly_paths: Vec<String>,
-    cgroups_path: String,
-    resources: LinuxResources,
-    namespaces: Vec<LinuxNamespace>,
+pub struct LinuxCapabilities {
+    pub bounding: Vec<String>,
+    pub permitted: Vec<String>,
+    pub effective: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct LinuxResources {
-    devices: Vec<LinuxDeviceCgroup>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct LinuxDeviceCgroup {
-    allow: bool,
-    access: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct LinuxNamespace {
+pub struct POSIXRlimit {
+    pub hard: u64,
+    pub soft: u64,
     #[serde(rename = "type")]
-    type_: String,
+    pub type_: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Linux {
+    pub masked_paths: Vec<String>,
+    pub readonly_paths: Vec<String>,
+    pub cgroups_path: String,
+    pub resources: LinuxResources,
+    pub namespaces: Vec<LinuxNamespace>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinuxResources {
+    pub devices: Vec<LinuxDeviceCgroup>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinuxDeviceCgroup {
+    pub allow: bool,
+    pub access: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinuxNamespace {
+    #[serde(rename = "type")]
+    pub type_: String,
 }
 
 pub fn default_unix_caps() -> Vec<String> {
@@ -252,16 +257,20 @@ fn get_version() -> String {
     )
 }
 
-fn populate_default_unix_spec(id: &str, ns: &str) -> Spec {
+pub fn populate_default_unix_spec(id: &str, ns: &str) -> Spec {
     Spec {
-        ociVersion: get_version(),
+        oci_version: get_version(),
         root: Root {
             path: DEFAULT_ROOTFS_PATH.to_string(),
         },
         process: Process {
             cwd: String::from("/"),
-            noNewPrivileges: true,
-            user: User { uid: 0, gid: 0 },
+            no_new_privileges: true,
+            user: User {
+                uid: 0,
+                gid: 0,
+                additional_gids: vec![],
+            },
             capabilities: LinuxCapabilities {
                 bounding: default_unix_caps(),
                 permitted: default_unix_caps(),
@@ -272,6 +281,8 @@ fn populate_default_unix_spec(id: &str, ns: &str) -> Spec {
                 hard: 1024,
                 soft: 1024,
             }],
+            args: vec![],
+            env: vec![],
         },
         linux: Linux {
             masked_paths: default_masked_parhs(),
@@ -280,7 +291,7 @@ fn populate_default_unix_spec(id: &str, ns: &str) -> Spec {
             resources: LinuxResources {
                 devices: vec![LinuxDeviceCgroup {
                     allow: false,
-                    access: String::from("rwm"),
+                    access: RWM.to_string(),
                 }],
             },
             namespaces: default_unix_namespaces(),
@@ -289,9 +300,19 @@ fn populate_default_unix_spec(id: &str, ns: &str) -> Spec {
     }
 }
 
-fn save_spec_to_file(spec: &Spec, path: &str) -> Result<(), std::io::Error> {
+pub fn save_spec_to_file(spec: &Spec, path: &str) -> Result<(), std::io::Error> {
     let file = File::create(path)?;
     serde_json::to_writer(file, spec)?;
     Ok(())
 }
 
+pub fn generate_spec(id: &str, ns: &str) -> Result<String, std::io::Error> {
+    let namespace = match ns {
+        "" => DEFAULT_NAMESPACE,
+        _ => ns,
+    };
+    let spec = populate_default_unix_spec(id, ns);
+    let path = format!("{}/{}/{}.json", PATH_TO_SPEC_PREFIX, namespace, id);
+    save_spec_to_file(&spec, &path)?;
+    Ok(path)
+}
