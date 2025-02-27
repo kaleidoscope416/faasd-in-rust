@@ -1,6 +1,13 @@
 [workspace]
-members = [ "app","service"]
+members = ["crates/*"]
+resolver = "3"
 
+[workspace.package]
+version = "0.0.1"
+authors = ["sparkzky", "Samuka007"]
+
+[workspace.metadata.crane]
+name = "faas-rs"
 
 # API 模块：基于 Actix Web 提供 RESTful 接口，调用 service 模块的功能。
 # 测试：编写单元测试和集成测试，确保服务的可靠性。
