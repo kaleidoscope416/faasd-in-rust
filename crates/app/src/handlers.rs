@@ -10,7 +10,8 @@ pub async fn create_container(
 ) -> impl Responder {
     let cid = info.container_id.clone();
     let image = info.image.clone();
-    service.create_container(image, cid).await;
+    let ns = info.ns.clone();
+    service.create_container(&image, &cid, &ns).await.unwrap();
     HttpResponse::Ok().json("Container created successfully!")
 }
 
@@ -20,12 +21,18 @@ pub async fn remove_container(
     info: web::Json<RemoveContainerInfo>,
 ) -> impl Responder {
     let container_id = info.container_id.clone();
-    service.remove_container(container_id).await;
+    let ns = info.ns.clone();
+    service.remove_container(&container_id, &ns).await.unwrap();
     HttpResponse::Ok().json("Container removed successfully!")
 }
 
-pub async fn get_container_list(service: web::Data<Arc<Service>>) -> impl Responder {
-    let container_list = service.get_container_list().await.unwrap();
+/// 获取容器列表
+pub async fn get_container_list(
+    service: web::Data<Arc<Service>>,
+    info: web::Json<GetContainerListQuery>,
+) -> impl Responder {
+    let ns = info.ns.clone();
+    let container_list = service.get_container_list(&ns).await.unwrap();
     HttpResponse::Ok().json(container_list)
 }
 
