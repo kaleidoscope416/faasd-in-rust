@@ -1,33 +1,37 @@
 pub mod spec;
+pub mod systemd;
 
 use containerd_client::{
     Client,
     services::v1::{
         Container, CreateContainerRequest, CreateTaskRequest, DeleteContainerRequest,
         DeleteTaskRequest, GetImageRequest, KillRequest, ListContainersRequest, ListTasksRequest,
-        ReadContentRequest, StartRequest, WaitRequest,
+        ReadContentRequest, StartRequest, TransferOptions, TransferRequest, WaitRequest,
         container::Runtime,
         snapshots::{MountsRequest, PrepareSnapshotRequest},
     },
+    to_any,
     tonic::Request,
-    types::Mount,
+    types::{
+        Mount, Platform,
+        transfer::{ImageStore, OciRegistry, UnpackConfiguration},
+    },
     with_namespace,
 };
 use oci_spec::image::{Arch, ImageConfiguration, ImageIndex, ImageManifest, MediaType, Os};
 use prost_types::Any;
 use sha2::{Digest, Sha256};
-use spec::generate_spec;
+use spec::{DEFAULT_NAMESPACE, generate_spec};
 use std::{
     fs,
     sync::{Arc, Mutex},
     time::Duration,
+    vec,
 };
 use tokio::time::timeout;
 
 // config.json,dockerhub密钥
 // const DOCKER_CONFIG_DIR: &str = "/var/lib/faasd/.docker/";
-// 命名空间（容器的）
-const NAMESPACE: &str = "default";
 
 type Err = Box<dyn std::error::Error>;
 
@@ -110,10 +114,9 @@ impl Service {
     }
 
     pub async fn remove_container(&self, cid: &str, ns: &str) -> Result<(), Err> {
-        let namespace = match ns {
-            "" => NAMESPACE,
-            _ => ns,
-        };
+        let namespace = self.check_namespace(ns);
+        let namespace = namespace.as_str();
+
         let c = self.client.lock().unwrap();
         let request = ListContainersRequest {
             ..Default::default()
@@ -236,10 +239,9 @@ impl Service {
     }
 
     pub async fn kill_task(&self, cid: String, ns: &str) -> Result<(), Err> {
-        let namespace = match ns {
-            "" => NAMESPACE,
-            _ => ns,
-        };
+        let namespace = self.check_namespace(ns);
+        let namespace = namespace.as_str();
+
         let mut c = self.client.lock().unwrap().tasks();
         let kill_request = KillRequest {
             container_id: cid.to_string(),
@@ -260,10 +262,9 @@ impl Service {
         todo!()
     }
     pub async fn delete_task(&self, cid: &str, ns: &str) {
-        let namespace = match ns {
-            "" => NAMESPACE,
-            _ => ns,
-        };
+        let namespace = self.check_namespace(ns);
+        let namespace = namespace.as_str();
+
         let mut c = self.client.lock().unwrap().tasks();
         let time_out = Duration::from_secs(30);
         let wait_result = timeout(time_out, async {
@@ -314,10 +315,9 @@ impl Service {
     }
 
     pub async fn get_container_list(&self, ns: &str) -> Result<Vec<String>, tonic::Status> {
-        let namespace = match ns {
-            "" => NAMESPACE,
-            _ => ns,
-        };
+        let namespace = self.check_namespace(ns);
+        let namespace = namespace.as_str();
+
         let mut c = self.client.lock().unwrap().containers();
 
         let request = ListContainersRequest {
@@ -340,13 +340,86 @@ impl Service {
         todo!()
     }
 
-    pub fn prepare_image(&self) {
-        todo!()
+    pub async fn prepare_image(
+        &self,
+        image_name: &str,
+        ns: &str,
+        always_pull: bool,
+    ) -> Result<(), Err> {
+        if always_pull {
+            self.pull_image(image_name, ns).await?;
+        } else {
+            let namespace = self.check_namespace(ns);
+            let namespace = namespace.as_str();
+            let mut c = self.client.lock().unwrap().images();
+            let req = GetImageRequest {
+                name: image_name.to_string(),
+            };
+            let resp = c
+                .get(with_namespace!(req, namespace))
+                .await
+                .map_err(|e| {
+                    eprintln!(
+                        "Failed to get the config of {} in namespace {}: {}",
+                        image_name, namespace, e
+                    );
+                    e
+                })
+                .ok()
+                .unwrap()
+                .into_inner();
+            if resp.image.is_none() {
+                self.pull_image(image_name, ns).await?;
+            }
+        }
+        Ok(())
     }
-    pub fn pull_image(&self) {
-        todo!()
+
+    pub async fn pull_image(&self, image_name: &str, ns: &str) -> Result<(), Err> {
+        let namespace = self.check_namespace(ns);
+        let namespace = namespace.as_str();
+
+        let mut c = self.client.lock().unwrap().transfer();
+        let source = OciRegistry {
+            reference: image_name.to_string(),
+            resolver: Default::default(),
+        };
+        // 这里先写死linux amd64
+        let platform = Platform {
+            os: "linux".to_string(),
+            architecture: "amd64".to_string(),
+            ..Default::default()
+        };
+        let dest = ImageStore {
+            name: image_name.to_string(),
+            platforms: vec![platform.clone()],
+            unpacks: vec![UnpackConfiguration {
+                platform: Some(platform),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let anys = to_any(&source);
+        let anyd = to_any(&dest);
+
+        let req = TransferRequest {
+            source: Some(anys),
+            destination: Some(anyd),
+            options: Some(TransferOptions {
+                ..Default::default()
+            }),
+        };
+        c.transfer(with_namespace!(req, namespace))
+            .await
+            .expect(&format!(
+                "Unable to transfer image {} to namespace {}",
+                image_name, namespace
+            ));
+        Ok(())
     }
-    /// 获取resolver，验证用，后面拉取镜像可能会用到
+
+    // 不用这个也能拉取镜像？
     pub fn get_resolver(&self) {
         todo!()
     }
@@ -517,6 +590,13 @@ impl Service {
             ret = format!("sha256:{digest}");
         }
         Ok(ret)
+    }
+
+    fn check_namespace(&self, ns: &str) -> String {
+        match ns {
+            "" => DEFAULT_NAMESPACE.to_string(),
+            _ => ns.to_string(),
+        }
     }
 }
 //容器是容器，要先启动，然后才能运行任务
