@@ -2041,6 +2041,7 @@ dependencies = [
  "futures-util",
  "hyper 0.14.32",
  "lazy_static",
+ "log",
  "my-workspace-hack",
  "prometheus",
  "regex",

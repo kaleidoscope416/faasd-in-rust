@@ -18,7 +18,9 @@ impl super::IAmHandler for FunctionLister {
             .await
             .unwrap();
 
-        for container in containers.iter() {}
+        for container in containers.iter() {
+            log::debug!("container: {:?}", container);
+        }
 
         HttpResponse::Ok().json("函数列表")
     }

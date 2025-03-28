@@ -3,7 +3,6 @@ use prometheus::Registry;
 use std::collections::HashMap;
 
 use crate::{
-    auth,
     handlers,
     metrics::{self, HttpMetrics},
     //httputil,
@@ -12,10 +11,12 @@ use crate::{
 };
 
 //用于函数/服务名称的表达式
+#[allow(dead_code)]
 const NAME_EXPRESSION: &str = r"-a-zA-Z_0-9\.";
 
 //应用程序状态，存储共享的数据，如配置、指标、认证信息等，为业务函数提供支持
 #[derive(Clone)]
+#[allow(dead_code)]
 struct AppState {
     config: FaaSConfig,   //应用程序的配置，用于识别是否开启Basic Auth等
     metrics: HttpMetrics, //用于监视http请求的持续时间和总数
@@ -23,13 +24,14 @@ struct AppState {
 }
 
 //serve 把处理程序headlers load到正确路由规范。这个函数是阻塞的。
+#[allow(dead_code)]
 async fn serve() -> std::io::Result<()> {
     let config = FaaSConfig::new(); //加载配置，用于识别是否开启Basic Auth等
-    let registry = Registry::new();
+    let _registry = Registry::new();
     let metrics = metrics::HttpMetrics::new(); //metrics监视http请求的持续时间和总数
 
     // 用于存储应用程序状态的结构体
-    let mut app_state = AppState {
+    let app_state = AppState {
         config: config.clone(),
         metrics: metrics.clone(),
         credentials: None,
@@ -37,15 +39,7 @@ async fn serve() -> std::io::Result<()> {
 
     // 如果启用了Basic Auth，从指定路径读取认证凭证并存储在应用程序状态中
     if config.enable_basic_auth {
-        // 读取Basic Auth凭证
-        let auth = auth::ReadBasicAuthFromDisk::new(
-            &config.secret_mount_path,
-            "users.txt",
-            "passwords.txt",
-        );
-        let credentials = auth.read_basic_auth().await; //这里的credentials是所有的账号密码
-        app_state.credentials = Some(credentials);
-        //TODO:handlers decorate with basic auth,尚未清楚是不是需要给所有的函数都加上
+        todo!("implement authentication");
     }
 
     HttpServer::new(move || {

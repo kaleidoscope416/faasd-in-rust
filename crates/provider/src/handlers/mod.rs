@@ -112,7 +112,7 @@ pub trait IAmHandler {
     type Input: DeserializeOwned + Send + 'static;
     // type Output: Serialize + Send + 'static;
 
-    /// 获取Handler元数据（函数名、超时时间等）
+    // /// 获取Handler元数据（函数名、超时时间等）
     // fn metadata(&self) -> HandlerMeta;
 
     /// 执行核心逻辑

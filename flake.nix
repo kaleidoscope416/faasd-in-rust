@@ -131,6 +131,9 @@
         apps = {
           faas-rs = flake-utils.lib.mkApp {
             drv = faas-rs-crate;
+            meta = {
+              description = "A containerd base lightweight FaaS platform written in Rust.";
+            };
           };
         };
 

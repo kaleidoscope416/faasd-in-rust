@@ -158,7 +158,6 @@ impl Service {
 
             let request = ListTasksRequest {
                 filter: format!("container=={}", cid),
-                ..Default::default()
             };
             let responce = tc
                 .list(with_namespace!(request, namespace))
@@ -183,7 +182,6 @@ impl Service {
 
             let delete_request = DeleteContainerRequest {
                 id: container.id.clone(),
-                ..Default::default()
             };
 
             let _ = cc
@@ -444,7 +442,7 @@ impl Service {
         todo!()
     }
 
-    async fn handle_index(&self, data: &Vec<u8>, ns: &str) -> Option<ImageConfiguration> {
+    async fn handle_index(&self, data: &[u8], ns: &str) -> Option<ImageConfiguration> {
         let image_index: ImageIndex = ::serde_json::from_slice(data).unwrap();
         let img_manifest_dscr = image_index
             .manifests()
@@ -486,7 +484,7 @@ impl Service {
         self.handle_manifest(&resp, ns).await
     }
 
-    async fn handle_manifest(&self, data: &Vec<u8>, ns: &str) -> Option<ImageConfiguration> {
+    async fn handle_manifest(&self, data: &[u8], ns: &str) -> Option<ImageConfiguration> {
         let img_manifest: ImageManifest = ::serde_json::from_slice(data).unwrap();
         let img_manifest_dscr = img_manifest.config();
 
