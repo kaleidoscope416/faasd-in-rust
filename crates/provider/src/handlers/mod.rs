@@ -1,10 +1,10 @@
 pub mod deploy;
 pub mod function_get;
 pub mod function_list;
+pub mod invoke_resolver;
 pub mod namespace_list;
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use serde::de::DeserializeOwned;
 
 pub async fn function_lister(_req: HttpRequest) -> impl Responder {
     HttpResponse::Ok().body("函数列表")
@@ -107,18 +107,4 @@ impl From<std::io::Error> for FaasError {
             source: Some(Box::new(err)),
         }
     }
-}
-
-pub trait IAmHandler {
-    type Input: DeserializeOwned + Send + 'static;
-    // type Output: Serialize + Send + 'static;
-
-    // /// 获取Handler元数据（函数名、超时时间等）
-    // fn metadata(&self) -> HandlerMeta;
-
-    /// 执行核心逻辑
-    fn execute(
-        &self,
-        input: Self::Input,
-    ) -> impl std::future::Future<Output = impl Responder> + Send;
 }
