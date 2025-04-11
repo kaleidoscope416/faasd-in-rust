@@ -1,5 +1,5 @@
 #[allow(unused)]
-pub const DEFAULT_FUNCTION_NAMESPACE: &str = "faasrs-fn";
+pub const DEFAULT_FUNCTION_NAMESPACE: &str = "default";
 
 #[allow(unused)]
 pub const NAMESPACE_LABEL: &str = "faasrs";

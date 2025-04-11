@@ -5,48 +5,37 @@ use actix_web::{Error, HttpRequest, HttpResponse, Responder, http::Method, web};
 use reqwest::{Client, RequestBuilder, redirect};
 use url::Url;
 
-use crate::{
-    handlers::invoke_resolver::InvokeResolver,
-    types::config::{FaaSConfig, IAmHandler},
-};
+use crate::{handlers::invoke_resolver::InvokeResolver, types::config::FaaSConfig};
 
-use super::ProxyHandlerInfo;
+pub async fn proxy_handler(
+    config: web::Data<FaaSConfig>,
+    resolver: web::Data<Option<InvokeResolver>>,
+    req: HttpRequest,
+    payload: web::Payload,
+) -> impl Responder {
+    let resolver_option = resolver.as_ref();
+    let resolver = resolver_option
+        .as_ref()
+        .expect("empty proxy handler resolver, cannot be nil");
 
-pub struct Proxy {}
+    let proxy_client = new_proxy_client_from_config(config.as_ref()).await;
 
-impl IAmHandler for Proxy {
-    type Input = ProxyHandlerInfo;
-
-    async fn execute(&mut self, input: Self::Input) -> impl Responder {
-        let resolver = input
-            .resolver
-            .expect("empty proxy handler resolver, cannot be nil");
-        let req = input.req;
-        let config = input.config;
-        let mut payload = input.payload;
-
-        let proxy_client = new_proxy_client_from_config(config).await;
-
-        match *req.method() {
-            Method::POST
-            | Method::PUT
-            | Method::DELETE
-            | Method::GET
-            | Method::PATCH
-            | Method::HEAD
-            | Method::OPTIONS => {
-                match proxy_request(&req, &mut payload, &proxy_client, &resolver).await {
-                    Ok(resp) => resp,
-                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-                }
-            }
-            _ => HttpResponse::MethodNotAllowed().body("method not allowed"),
-        }
+    match *req.method() {
+        Method::POST
+        | Method::PUT
+        | Method::DELETE
+        | Method::GET
+        | Method::PATCH
+        | Method::HEAD
+        | Method::OPTIONS => match proxy_request(&req, payload, &proxy_client, resolver).await {
+            Ok(resp) => resp,
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        },
+        _ => HttpResponse::MethodNotAllowed().body("method not allowed"),
     }
 }
-
 //构建client
-async fn new_proxy_client_from_config(config: FaaSConfig) -> Client {
+async fn new_proxy_client_from_config(config: &FaaSConfig) -> Client {
     new_proxy_client(
         config.get_read_timeout(),
         /*config.get_max_idle_conns(),*/ config.get_max_idle_conns_per_host(),
@@ -75,7 +64,7 @@ async fn new_proxy_client(
 //根据原始请求，解析url，构建转发请求并转发，获取响应
 async fn proxy_request(
     req: &HttpRequest,
-    payload: &mut web::Payload,
+    payload: web::Payload,
     proxy_client: &Client,
     resolver: &InvokeResolver,
 ) -> Result<HttpResponse, Error> {
@@ -113,7 +102,7 @@ async fn build_proxy_request(
     req: &HttpRequest,
     base_url: &Url,
     proxy_client: &Client,
-    payload: &mut web::Payload,
+    mut payload: web::Payload,
 ) -> Result<RequestBuilder, Error> {
     let origin_url = base_url.join(req.uri().path()).unwrap();
     let remaining_segments = origin_url.path_segments().unwrap().skip(2);
