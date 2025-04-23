@@ -5,11 +5,9 @@ use provider::{
     types::config::FaaSConfig,
 };
 use service::containerd_manager::{ContainerdManager, CtrInstance};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use tokio::time::Duration;
-use tokio::time::sleep;
+use std::sync::{Arc,atomic::AtomicBool, atomic::Ordering};
+use tokio::time::{Duration,sleep};
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
