@@ -2,13 +2,19 @@ use crate::handlers::invoke_resolver::InvokeResolver;
 use crate::proxy::builder::build_proxy_request;
 use crate::proxy::client::new_proxy_client_from_config;
 use crate::types::config::FaaSConfig;
-use actix_web::{Error, HttpRequest, HttpResponse, Responder, http::Method, web};
+use actix_web::{
+    Error, HttpRequest, HttpResponse,
+    error::{ErrorBadRequest, ErrorInternalServerError, ErrorMethodNotAllowed},
+    http::Method,
+    web,
+};
 
+// 主要参考源码的响应设置
 pub async fn proxy_handler(
     config: web::Data<FaaSConfig>,
     req: HttpRequest,
     payload: web::Payload,
-) -> impl Responder {
+) -> Result<HttpResponse, Error> {
     let proxy_client = new_proxy_client_from_config(config.as_ref()).await;
     log::info!("proxy_client : {:?}", proxy_client);
 
@@ -19,11 +25,8 @@ pub async fn proxy_handler(
         | Method::GET
         | Method::PATCH
         | Method::HEAD
-        | Method::OPTIONS => match proxy_request(&req, payload, &proxy_client).await {
-            Ok(resp) => resp,
-            Err(e) => HttpResponse::from_error(e),
-        },
-        _ => HttpResponse::MethodNotAllowed().body("method not allowed"),
+        | Method::OPTIONS => proxy_request(&req, payload, &proxy_client).await,
+        _ => Err(ErrorMethodNotAllowed("method not allowed")),
     }
 }
 
@@ -35,13 +38,10 @@ async fn proxy_request(
 ) -> Result<HttpResponse, Error> {
     let function_name = req.match_info().get("name").unwrap_or("");
     if function_name.is_empty() {
-        return Ok(HttpResponse::BadRequest().body("provide function name in path"));
+        return Err(ErrorBadRequest("function name is required"));
     }
 
-    let function_addr = match InvokeResolver::resolve_function_url(function_name).await {
-        Ok(function_addr) => function_addr,
-        Err(e) => return Ok(HttpResponse::BadRequest().body(e.to_string())),
-    };
+    let function_addr = InvokeResolver::resolve_function_url(function_name).await?;
 
     let proxy_req = build_proxy_request(req, &function_addr, proxy_client, payload).await?;
 
@@ -58,6 +58,6 @@ async fn proxy_request(
 
             Ok(client_resp.body(body))
         }
-        Err(e) => Ok(HttpResponse::BadGateway().body(e.to_string())),
+        Err(e) => Err(ErrorInternalServerError(e)),
     }
 }
