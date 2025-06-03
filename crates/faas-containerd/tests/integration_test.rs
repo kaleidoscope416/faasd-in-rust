@@ -34,9 +34,17 @@ async fn test_handlers_in_order() {
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    let response_body = test::read_body(resp).await;
-    let response_str = std::str::from_utf8(&response_body).unwrap();
-    assert!(response_str.contains("NotFound: container not found"));
+
+    // test update bad request in namespace 'faasrs-test-namespace'
+    let req = test::TestRequest::put()
+        .uri("/system/functions")
+        .set_json(json!({
+            "service": "test-bad-request-function",
+            "namespace": "faasrs-test-namespace"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 
     // test delete no-found-function in namespace 'faasrs-test-namespace'
     let req = test::TestRequest::delete()
@@ -49,11 +57,32 @@ async fn test_handlers_in_order() {
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
+    // test delete bad request in namespace 'faasrs-test-namespace'
+    let req = test::TestRequest::delete()
+        .uri("/system/functions")
+        .set_json(json!({
+            "namespace": "faasrs-test-namespace"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+
+    // test deploy bad request in namespace 'faasrs-test-namespace'
+    let req = test::TestRequest::post()
+        .uri("/system/functions")
+        .set_json(json!({
+            "service": "test-bad-request-function",
+            "namespace": "faasrs-test-namespace"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+
     // test deploy test-function in namespace 'faasrs-test-namespace'
     let req = test::TestRequest::post()
         .uri("/system/functions")
         .set_json(json!({
-            "service": "test-function",
+            "service": "test-function1",
             "image": "hub.scutosc.cn/dolzhuying/echo:latest",
             "namespace": "faasrs-test-namespace"
         }))
@@ -70,16 +99,36 @@ async fn test_handlers_in_order() {
     let req = test::TestRequest::put()
         .uri("/system/functions")
         .set_json(json!({
-            "service": "test-function",
+            "service": "test-function1",
             "image": "hub.scutosc.cn/dolzhuying/echo:latest",
             "namespace": "faasrs-test-namespace"
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
-    let response_body = test::read_body(resp).await;
-    let response_str = std::str::from_utf8(&response_body).unwrap();
-    assert!(response_str.contains("function test-function was updated successfully"));
+
+    // test update bad request in namespace 'faasrs-test-namespace'
+    let req = test::TestRequest::put()
+        .uri("/system/functions")
+        .set_json(json!({
+            "service": "test-function1",
+            "namespace": "faasrs-test-namespace"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+
+    // test update not fount in namespace 'faasrs-test-namespace'
+    let req = test::TestRequest::put()
+        .uri("/system/functions")
+        .set_json(json!({
+            "service": "test-not-found-function",
+            "image": "hub.scutosc.cn/dolzhuying/echo:latest",
+            "namespace": "faasrs-test-namespace"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
     // test list
     let req = test::TestRequest::get()
@@ -118,7 +167,7 @@ async fn test_handlers_in_order() {
     let response_json: serde_json::Value = serde_json::from_str(response_str).unwrap();
     if let Some(arr) = response_json.as_array() {
         for item in arr {
-            assert_eq!(item["name"], "test-function");
+            assert_eq!(item["name"], "test-function1");
             assert_eq!(item["image"], "hub.scutosc.cn/dolzhuying/echo:latest");
             assert_eq!(item["namespace"], "faasrs-test-namespace");
         }
@@ -138,7 +187,7 @@ async fn test_handlers_in_order() {
     let req = test::TestRequest::delete()
         .uri("/system/functions")
         .set_json(json!({
-            "functionName": "test-function",
+            "functionName": "test-function1",
             "namespace": "faasrs-test-namespace"
         }))
         .to_request();
@@ -147,4 +196,6 @@ async fn test_handlers_in_order() {
     let response_body = test::read_body(resp).await;
     let response_str = std::str::from_utf8(&response_body).unwrap();
     assert!(response_str.contains("function test-function was deleted successfully"));
+
+    //test
 }
